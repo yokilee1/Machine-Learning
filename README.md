@@ -517,6 +517,10 @@ class WebManager(CalculationNodeManager):
 
 ### 7.4 前端界面优化
 
+| 原前端界面                                 | 优化后前端界面                             |
+| ------------------------------------------ | ------------------------------------------ |
+| ![](D:\project\machine-learning\img\2.png) | ![](D:\project\machine-learning\img\1.png) |
+
 **组件结构**：
 
 - 使用了 `<template>` 标签包裹所有的模板代码，定义了组件的结构和布局。
