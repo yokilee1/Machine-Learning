@@ -247,7 +247,7 @@ def visualize(self , testDataset)
 
 ## 5. 前端架构 (dlframe-front-master)
 
-![1](D:\project\machine-learning\img\1.png)
+![1](img\1.png)
 
 ### 5.1 核心组件
 
@@ -519,7 +519,7 @@ class WebManager(CalculationNodeManager):
 
 | 原前端界面                                 | 优化后前端界面                             |
 | ------------------------------------------ | ------------------------------------------ |
-| ![](D:\project\machine-learning\img\2.png) | ![](D:\project\machine-learning\img\1.png) |
+| ![](img\2.png) | ![](img\1.png) |
 
 **组件结构**：
 
