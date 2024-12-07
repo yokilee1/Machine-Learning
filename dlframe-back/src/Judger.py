@@ -9,7 +9,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 import seaborn as sns
 from io import BytesIO
 from PIL import Image
-
+from sklearn.metrics import silhouette_score, calinski_harabasz_score
 
 
 
@@ -83,276 +83,23 @@ class F1ScoreJudger:
         
         self.logger.print(f"F1 Score: {f1:.4f}")
         return f1
-
+        
 class ClusteringJudger:
-    
-    def __init__(self):
-        self.logger = Logger.get_logger('ClusteringJudger')
-        
-    def judge(self, cluster_labels, test_dataset):
-        """
-        评估聚类结果
-        cluster_labels: 聚类预测的标签
-        test_dataset: 原始数据集
-        """
-        import numpy as np
-        from sklearn.metrics import (
-            silhouette_score,
-            calinski_harabasz_score,
-            davies_bouldin_score
-        )
-        import matplotlib.pyplot as plt
-        import io
-        from PIL import Image
-        
-        try:
-            # 提取特征数据
-            X = np.array([x[0] for x in test_dataset])
-            
-            # 计算各种评估指标
-            scores = {}
-            
-            # 1. 轮廓系数 (范围：[-1, 1]，越大越好)
-            silhouette = silhouette_score(X, cluster_labels)
-            scores['silhouette'] = silhouette
-            
-            # 2. Calinski-Harabasz指数 (越大越好)
-            calinski = calinski_harabasz_score(X, cluster_labels)
-            scores['calinski_harabasz'] = calinski
-            
-            # 3. Davies-Bouldin指数 (越小越好)
-            davies = davies_bouldin_score(X, cluster_labels)
-            scores['davies_bouldin'] = davies
-            
-            # 4. 计算簇内距离和簇间距离
-            unique_labels = np.unique(cluster_labels)
-            n_clusters = len(unique_labels)
-            
-            # 计算簇中心
-            centroids = []
-            intra_distances = []  # 簇内距离
-            for label in unique_labels:
-                mask = cluster_labels == label
-                cluster_points = X[mask]
-                centroid = np.mean(cluster_points, axis=0)
-                centroids.append(centroid)
-                
-                # 计算簇内平均距离
-                if len(cluster_points) > 1:
-                    distances = np.linalg.norm(cluster_points - centroid, axis=1)
-                    intra_distances.append(np.mean(distances))
-                else:
-                    intra_distances.append(0)
-            
-            centroids = np.array(centroids)
-            
-            # 计算簇间距离
-            inter_distances = []
-            for i in range(n_clusters):
-                for j in range(i + 1, n_clusters):
-                    dist = np.linalg.norm(centroids[i] - centroids[j])
-                    inter_distances.append(dist)
-            
-            # 打印评估结果
-            self.logger.print("\nClustering Evaluation Results:")
-            self.logger.print(f"Number of clusters: {n_clusters}")
-            self.logger.print(f"Silhouette Score: {silhouette:.3f}")
-            self.logger.print(f"Calinski-Harabasz Score: {calinski:.3f}")
-            self.logger.print(f"Davies-Bouldin Score: {davies:.3f}")
-            self.logger.print("\nCluster Statistics:")
-            for i, label in enumerate(unique_labels):
-                cluster_size = np.sum(cluster_labels == label)
-                self.logger.print(f"Cluster {label}: {cluster_size} samples, "
-                                f"Average intra-cluster distance: {intra_distances[i]:.3f}")
-            
-            return {
-                'silhouette_score': silhouette,
-                'calinski_harabasz_score': calinski,
-                'davies_bouldin_score': davies,
-                'n_clusters': n_clusters,
-                'cluster_sizes': [np.sum(cluster_labels == label) for label in unique_labels],
-                'intra_cluster_distances': intra_distances,
-                'inter_cluster_distances': inter_distances
-            }
-            
-        except Exception as e:
-            self.logger.print(f"Error during clustering evaluation: {str(e)}")
-            import traceback
-            self.logger.print(traceback.format_exc())
-            return None
-        
-class EMJudger:
     def __init__(self):
         self.logger = Logger.get_logger('EMJudger')
-
         
-    # def judge(self, y_pred, test_dataset):
-    #      # 提取特征数据
-    #      X = np.array([x[0] for x in test_dataset])
-    #      y_true = np.array([x[1] for x in test_dataset])
-         
-    #      # 计算似然函数值（假设使用高斯分布）
-    #      mean = np.mean(X, axis=0)
-    #      cov = np.cov(X, rowvar=False)
-    #      likelihood = np.sum(-0.5 * (np.log(np.linalg.det(cov)) + 
-    #                                    np.sum((X - mean) @ np.linalg.inv(cov) * (X - mean), axis=1)))
-    #      self.logger.print(f"似然函数值Likelihood (calculated): {likelihood:.4f}")
-         
-    #      # 收敛速度（这里我们假设为固定值，实际情况需要根据具体算法实现）
-    #      convergence_speed = 1  # 这里可以根据实际情况进行调整
-    #      self.logger.print(f"收敛速度Convergence Speed (assumed): {convergence_speed}")
-         
-    #      # 模型复杂度（假设为特征数量）
-    #      model_complexity = X.shape[1]  # 特征数量
-    #      self.logger.print(f"模型复杂度Model Complexity (features): {model_complexity}")
-         
-    #      # 拟合优度（使用AIC）
-    #      aic = 2 * model_complexity - 2 * likelihood
-    #      self.logger.print(f"拟合优度AIC (Goodness of Fit): {aic:.4f}")
-         
-    #      from sklearn.metrics import precision_score, recall_score, f1_score
-         
-    #      # 从y_pred中提取预测的类别标签
-    #      predicted_labels = np.argmax(y_pred, axis=1)  # 获取每个样本的预测类别
-    #      accuracy = np.sum(predicted_labels == y_true) / len(y_true)
-    #      self.logger.print(f"Classification Accuracy: {accuracy:.4f}")
-         
-    #      # 计算其他评估指标
-    #      precision = precision_score(y_true, predicted_labels, average='weighted')
-    #      recall = recall_score(y_true, predicted_labels, average='weighted')
-    #      f1 = f1_score(y_true, predicted_labels, average='weighted')
-         
-    #      self.logger.print(f"Precision: {precision:.4f}")
-    #      self.logger.print(f"Recall: {recall:.4f}")
-    #      self.logger.print(f"F1 Score: {f1:.4f}")
-         
-    #      return {
-    #          'likelihood': likelihood,
-    #          'convergence_speed': convergence_speed,
-    #          'model_complexity': model_complexity,
-    #          'aic': aic,
-    #          'accuracy': accuracy,
-    #          'precision': precision,
-    #          'recall': recall,
-    #          'f1_score': f1
-    #      }
-    def judge(self, y_pred, test_dataset):
-        import numpy as np
-        from sklearn.metrics import silhouette_score, calinski_harabasz_score, davies_bouldin_score
-        import matplotlib.pyplot as plt
-        import io
-        from PIL import Image
+    def judge(self, predictions, test_dataset):
+        X = np.array([data[0] for data in test_dataset])
         
-        try:
-            # 提取特征数据
-            X = np.array([x[0] for x in test_dataset])
-            
-            # 获取预测标签
-            labels = np.argmax(y_pred, axis=1)
-            
-            # 计算基本聚类评估指标
-            scores = {
-                'silhouette': silhouette_score(X, labels),
-                'calinski_harabasz': calinski_harabasz_score(X, labels),
-                'davies_bouldin': davies_bouldin_score(X, labels)
-            }
-            
-            # 计算不确定性
-            uncertainty = -np.sum(y_pred * np.log(y_pred + 1e-10), axis=1)
-            avg_uncertainty = np.mean(uncertainty)
-            max_uncertainty = np.max(uncertainty)
-            
-            # 创建可视化
-            plt.switch_backend('Agg')
-            fig = plt.figure(figsize=(15, 10))
-            
-            # 1. 预测概率分布
-            ax1 = plt.subplot(221)
-            n_components = y_pred.shape[1]
-            ax1.boxplot([y_pred[:, i] for i in range(n_components)],
-                       labels=[f'Component {i+1}' for i in range(n_components)])
-            ax1.set_title('Component Probability Distribution')
-            ax1.set_ylabel('Probability')
-            ax1.grid(True)
-            
-            # 2. 不确定性分布
-            ax2 = plt.subplot(222)
-            ax2.hist(uncertainty, bins=30)
-            ax2.axvline(avg_uncertainty, color='r', linestyle='--', 
-                       label=f'Mean={avg_uncertainty:.3f}')
-            ax2.set_title('Uncertainty Distribution')
-            ax2.set_xlabel('Uncertainty')
-            ax2.set_ylabel('Count')
-            ax2.legend()
-            ax2.grid(True)
-            
-            # 3. 聚类评估指标
-            ax3 = plt.subplot(223)
-            metric_names = ['Silhouette', 'Calinski-Harabasz', 'Davies-Bouldin']
-            metric_values = [scores['silhouette'], 
-                           scores['calinski_harabasz']/1000,
-                           scores['davies_bouldin']]
-            ax3.bar(metric_names, metric_values)
-            ax3.set_title('Clustering Metrics')
-            ax3.set_xticklabels(metric_names, rotation=45)
-            ax3.grid(True)
-            
-            # 4. 类别分布
-            ax4 = plt.subplot(224)
-            unique_labels, label_counts = np.unique(labels, return_counts=True)
-            ax4.bar([f'Cluster {i+1}' for i in range(len(unique_labels))], 
-                   label_counts)
-            ax4.set_title('Cluster Size Distribution')
-            ax4.set_ylabel('Number of Samples')
-            ax4.grid(True)
-            
-            plt.tight_layout()
-            
-            # 保存图像
-            buf = io.BytesIO()
-            plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
-            buf.seek(0)
-            
-            img = Image.open(buf)
-            img = img.convert('RGB')
-            img_array = np.array(img)
-            
-            plt.close()
-            buf.close()
-            
-            # 显示图像
-            self.logger.imshow(img_array)
-            
-            # 打印评估结果
-            self.logger.print("\nEM Algorithm Evaluation Results:")
-            self.logger.print(f"\nClustering Metrics:")
-            self.logger.print(f"- 轮廓系数Silhouette Score: {scores['silhouette']:.3f}")
-            self.logger.print(f"- 方差比Calinski-Harabasz Score: {scores['calinski_harabasz']:.3f}")
-            self.logger.print(f"- 戴维森堡丁指数Davies-Bouldin Score: {scores['davies_bouldin']:.3f}")
-            self.logger.print(f"\nUncertainty Analysis:")
-            self.logger.print(f"- 平均不确定性Average uncertainty: {avg_uncertainty:.3f}")
-            self.logger.print(f"- 最大不确定性Maximum uncertainty: {max_uncertainty:.3f}")
-            self.logger.print(f"\nCluster Distribution:")
-            for i, count in enumerate(label_counts):
-                self.logger.print(f"- Cluster {i+1}: {count} samples")
-            
-            return {
-                'clustering_scores': scores,
-                'uncertainty': {
-                    'mean': float(avg_uncertainty),
-                    'max': float(max_uncertainty)
-                },
-                'cluster_distribution': {
-                    'labels': labels.tolist(),
-                    'counts': label_counts.tolist()
-                }
-            }
-            
-        except Exception as e:
-            self.logger.print(f"Error during EM evaluation: {str(e)}")
-            import traceback
-            self.logger.print(traceback.format_exc())
-            return None
+        # 计算轮廓系数 (Silhouette Coefficient)
+        silhouette_avg = silhouette_score(X, predictions)
+        
+        # 计算 Calinski-Harabasz 指数
+        calinski_harabasz = calinski_harabasz_score(X, predictions)
+        
+        self.logger.print(f"聚类评估结果：")
+        self.logger.print(f"轮廓系数 (Silhouette Coefficient): {silhouette_avg:.4f}")
+        self.logger.print(f"Calinski-Harabasz 指数: {calinski_harabasz:.4f}")
 
 class HMMJudger:
     def __init__(self):
@@ -422,12 +169,6 @@ class HMMJudger:
         self.logger.print(f"准确率: {results['accuracy']:.4f}")
         self.logger.print("\n混淆矩阵:")
         self.logger.print(results['confusion_matrix'])
-        self.logger.print("\n每个状态的评估指标:")
-        for i in range(len(results['precision'])):
-            self.logger.print(f"状态 {i}:")
-            self.logger.print(f"精确率: {results['precision'][i]:.4f}")
-            self.logger.print(f"召回率: {results['recall'][i]:.4f}")
-            self.logger.print(f"F1分数: {results['f1'][i]:.4f}")
             
     def _visualize_results(self, results, true_states, predicted_states):
         """可视化评估结果"""

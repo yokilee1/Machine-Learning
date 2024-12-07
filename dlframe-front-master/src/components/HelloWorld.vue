@@ -1,63 +1,104 @@
 <template>
-  <el-container>
-    <el-header>
-      <el-page-header title="机器学习实践平台" />
+  <el-container class="main-container">
+    <!-- 顶部导航栏 -->
+    <el-header class="header">
+      <div class="header-content">
+        <div class="logo-title">
+          <img alt="Logo" class="logo" src="/logo.ico">
+          <h1>机器学习实践平台</h1>
+        </div>
+        <el-tag class="connection-status" effect="dark" type="success">
+          <el-icon><Connection /></el-icon>
+          已连接: {{connectUrl}}:{{connectPort}}
+        </el-tag>
+      </div>
     </el-header>
     
-    <el-main>
+    <el-main class="main-content">
       <el-row :gutter="20">
         <!-- 左侧配置面板 -->
         <el-col :span="8">
-          <el-card class="config-panel">
+          <el-card class="config-panel" shadow="hover">
             <template #header>
-              <div class="card-header">
-                <span>配置选项</span>
-                <el-tag type="info">已连接: {{connectUrl}}:{{connectPort}}</el-tag>
+              <div class="panel-header">
+                <span class="title">实验配置</span>
+                <el-tooltip content="配置实验参数" placement="top">
+                  <el-icon class="header-icon"><Setting /></el-icon>
+                </el-tooltip>
               </div>
             </template>
             
-            <div v-for="(value, key) in configDict" :key="key">
-              <h3>{{ key }}</h3>
-              <el-radio-group v-model="configValue[key]" class="radio-group">
-                <el-radio-button v-for="name in value" :key="name" :label="name">
-                  {{ name }}
-                </el-radio-button>
-              </el-radio-group>
+            <div class="config-sections">
+              <div v-for="(value, key) in configDict" :key="key" class="config-section">
+                <h3 class="section-title">
+                  <el-icon><Menu /></el-icon>
+                  {{ key }}
+                </h3>
+                <el-radio-group v-model="configValue[key]" class="radio-group">
+                  <el-radio-button 
+                    v-for="name in value" 
+                    :key="name" 
+                    :label="name"
+                    class="radio-button">
+                    {{ name }}
+                  </el-radio-button>
+                </el-radio-group>
+              </div>
             </div>
             
-            <el-button :icon="CaretRight" class="run-button" type="primary" @click="clickButton">
-              运行
+            <el-button 
+              :icon="CaretRight"
+              :loading="isRunning"
+              class="run-button"
+              type="primary"
+              @click="clickButton">
+              {{ isRunning ? '运行中...' : '开始实验' }}
             </el-button>
           </el-card>
         </el-col>
 
-        <!-- 右侧结果展��� -->
+        <!-- 右侧结果展示 -->
         <el-col :span="16">
-          <el-card class="result-panel">
+          <el-card class="result-panel" shadow="hover">
             <template #header>
-              <div class="card-header">
-                <span>运行结果</span>
-                <el-button :icon="Delete" type="primary" @click="clearOutput">
-                  清空
-                </el-button>
+              <div class="panel-header">
+                <div class="title-section">
+                  <el-icon><DataAnalysis /></el-icon>
+                  <span class="title">实验结果</span>
+                </div>
+                <div class="controls">
+                  <el-button 
+                    :icon="Delete"
+                    size="small"
+                    type="danger"
+                    @click="clearOutput">
+                    清空结果
+                  </el-button>
+                </div>
               </div>
             </template>
             
             <div class="result-content">
               <el-scrollbar height="600px">
-                <div v-for="(content, idx) in runningOutput" :key="idx" class="result-item">
-                  <el-alert
-                    v-if="content.type === 'string'"
-                    :closable="false"
-                    :title="content.content"
-                  />
-                  <el-image
-                    v-if="content.type === 'image'"
-                    :preview-src-list="['data:image/jpeg;base64,'+content.content]"
-                    :src="'data:image/jpeg;base64,'+content.content"
-                    fit="contain"
-                  />
-                </div>
+                <transition-group name="fade">
+                  <div v-for="(content, idx) in runningOutput" 
+                       :key="idx" 
+                       class="result-item">
+                    <el-alert
+                      v-if="content.type === 'string'"
+                      :closable="false"
+                      :title="content.content"
+                      class="text-output"
+                    />
+                    <el-image
+                      v-if="content.type === 'image'"
+                      :preview-src-list="['data:image/jpeg;base64,'+content.content]"
+                      :src="'data:image/jpeg;base64,'+content.content"
+                      class="image-output"
+                      fit="contain"
+                    />
+                  </div>
+                </transition-group>
               </el-scrollbar>
             </div>
           </el-card>
@@ -67,9 +108,154 @@
   </el-container>
 </template>
 
+<style scoped>
+.main-container {
+  min-height: 100vh;
+  background-color: #f5f7fa;
+}
+
+.header {
+  background-color: #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,.1);
+  padding: 0 20px;
+}
+
+.header-content {
+  height: 60px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo-title {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.logo {
+  height: 40px;
+  width: 40px;
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.main-content {
+  padding: 20px;
+}
+
+.config-panel, .result-panel {
+  height: calc(100vh - 140px);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 10px;
+}
+
+.title-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.config-sections {
+  padding: 10px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #606266;
+  margin-bottom: 15px;
+}
+
+.radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.radio-button {
+  margin-bottom: 10px;
+}
+
+.run-button {
+  width: 100%;
+  height: 40px;
+  margin-top: 20px;
+  font-size: 16px;
+}
+
+.result-content {
+  padding: 10px;
+}
+
+.result-item {
+  margin: 10px 0;
+  transition: all 0.3s ease;
+}
+
+.text-output {
+  border-radius: 4px;
+}
+
+.image-output {
+  border-radius: 4px;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
+}
+
+/* 添加过渡动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .el-row {
+    flex-direction: column;
+  }
+  
+  .el-col {
+    width: 100% !important;
+    margin-bottom: 20px;
+  }
+}
+</style>
+
 <script lang="ts" setup>
-import { ElMessage } from 'element-plus'
 import { ref } from 'vue'
+import { 
+  CaretRight, 
+  Delete, 
+  Setting, 
+  Menu, 
+  Connection,
+  DataAnalysis 
+} from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
 const connectUrl = ref('localhost')
 const connectPort = ref('8765')
@@ -206,39 +392,3 @@ const autoReconnect = () => {
   }
 }
 </script>
-
-<style scoped>
-.config-panel {
-  height: 100%;
-}
-
-.result-panel {
-  height: 100%;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.radio-group {
-  margin: 10px 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.run-button {
-  width: 100%;
-  margin-top: 20px;
-}
-
-.result-content {
-  min-height: 600px;
-}
-
-.result-item {
-  margin: 10px 0;
-}
-</style>

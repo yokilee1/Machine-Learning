@@ -14,6 +14,8 @@ from PIL import Image
 from sklearn.decomposition import PCA
 from copy import deepcopy
 import json
+from sklearn.mixture import GaussianMixture
+from sklearn.metrics import silhouette_score, silhouette_samples
 
 class KNNModel:
     def __init__(self, k=3):
@@ -410,6 +412,8 @@ class KMeansModel:
     def __init__(self, k=3):
         import os
         from sklearn.cluster import KMeans
+        from sklearn.metrics import silhouette_score, silhouette_samples
+        from sklearn.decomposition import PCA
         
         # 设置OMP_NUM_THREADS环境变量来避免内存泄漏
         os.environ['OMP_NUM_THREADS'] = '5'
@@ -423,67 +427,37 @@ class KMeansModel:
         self.model.fit(X_train)
         self.logger.print("训练完成")
 
-    def visualize(self , testDataset):
-        import matplotlib.pyplot as plt
-        import numpy as np
-        from io import BytesIO
-        from PIL import Image
-        from sklearn.metrics import silhouette_score, silhouette_samples
-        from sklearn.decomposition import PCA
+    def visualize(self, testDataset):
+        # 设置中文字体
+        plt.rcParams['font.sans-serif'] = ['SimHei']
+        plt.rcParams['axes.unicode_minus'] = False
         
         # 获取测试数据
         X_test = np.array([x[0] for x in testDataset])
         
-        # 进行测
+        # 进行预测
         labels = self.model.predict(X_test)
         
-        # 创建图
+        # 创建图表
         plt.switch_backend('Agg')
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 12))
+        plt.figure(figsize=(10, 8))
         
-        # 1. 二维聚类结果图(使用PCA降维)
+        # 使用PCA降维
         pca = PCA(n_components=2)
         X_pca = pca.fit_transform(X_test)
         centroids_pca = pca.transform(self.model.cluster_centers_)
         
-        scatter = ax1.scatter(X_pca[:, 0], X_pca[:, 1], c=labels, cmap='viridis')
-        ax1.scatter(centroids_pca[:, 0], centroids_pca[:, 1], 
-                   c='red', marker='x', s=200, linewidths=3, label='centroids')
-        ax1.set_title('result of clustering(PCA)')
-        ax1.set_xlabel('main component1')
-        ax1.set_ylabel('main component2')
-        ax1.legend()
-        plt.colorbar(scatter, ax=ax1)
+        # 绘制散点图和中心点
+        scatter = plt.scatter(X_pca[:, 0], X_pca[:, 1], c=labels, cmap='viridis')
+        plt.scatter(centroids_pca[:, 0], centroids_pca[:, 1], 
+                   c='red', marker='x', s=200, linewidths=3, label='Centroids')
         
-        # 2. 各簇样本数量分布
-        unique_labels, counts = np.unique(labels, return_counts=True)
-        ax2.bar([f'cluster {i}' for i in unique_labels], counts)
-        ax2.set_title('cluster sample count distribution')
-        ax2.set_xlabel('cluster')
-        ax2.set_ylabel('count')
-        
-        # 3. 轮廓系数分布
-        silhouette_avg = silhouette_score(X_test, labels)
-        ax3.hist(silhouette_samples(X_test, labels), bins=20)
-        ax3.axvline(silhouette_avg, color='red', linestyle='--', 
-                   label=f'avg: {silhouette_avg:.3f}')
-        ax3.set_title('cluster silhouette coefficient distribution')
-        ax3.set_xlabel('silhouette coefficient')
-        ax3.set_ylabel('count')
-        ax3.legend()
-        
-        # 4. 簇内距离分布
-        intra_dists = []
-        for i in range(self.model.n_clusters):
-            cluster_points = X_test[labels == i]
-            centroid = self.model.cluster_centers_[i]
-            dists = np.linalg.norm(cluster_points - centroid, axis=1)
-            intra_dists.append(dists)
-        
-        ax4.boxplot(intra_dists, labels=[f'cluster {i}' for i in range(self.model.n_clusters)])
-        ax4.set_title('cluster intra-distance distribution')
-        ax4.set_xlabel('cluster')
-        ax4.set_ylabel('distance')
+        # 设置标题和标签
+        plt.title('K-means Clustering Results (PCA)')
+        plt.xlabel('First Principal Component')
+        plt.ylabel('Second Principal Component')
+        plt.legend()
+        plt.colorbar(scatter, label='Cluster')
         
         plt.tight_layout()
         
@@ -500,7 +474,7 @@ class KMeansModel:
         buf.close()
         
         # 显示图像
-        self.logger.imshow(img_array)   
+        self.logger.imshow(img_array)
 
     def test(self, testDataset):        
         # 获取测试数据
@@ -606,60 +580,55 @@ class BoostingModel:
         return y_pred
     
 class EMModel:
-    def __init__(self, n_components=3, max_iter=100):
-        from sklearn.mixture import GaussianMixture
-        self.n_components = n_components
-        self.max_iter = max_iter
-        self.model = GaussianMixture(
-            n_components=n_components,
-            max_iter=max_iter,
-            random_state=42
-        )
+    def __init__(self, n_components=3, random_state=42):
+        self.model = GaussianMixture(n_components=n_components, 
+                                   random_state=random_state)
         self.logger = Logger.get_logger('EMModel')
-        self.logger.print(f"EM Model initialized with {n_components} components")
-
-    def train(self, trainDataset):
-        import numpy as np
         
-        try:
-            # 提取特征
-            X = np.array([x[0] for x in trainDataset])
-            self.logger.print(f"Training data shape: {X.shape}")
-            
-            # 训练模型
-            self.model.fit(X)
-            self.logger.print("Model fitting completed")
-            
-            # 返回预测概率
-            probabilities = self.model.predict_proba(X)
-            self.logger.print(f"Training completed in {self.model.n_iter_} iterations")
-            self.logger.print(f"Convergence status: {self.model.converged_}")
-            
-            return probabilities
-            
-        except Exception as e:
-            self.logger.print(f"Error during EM training: {str(e)}")
-            import traceback
-            self.logger.print(traceback.format_exc())
-            return None
-
-    def test(self, testDataset):
-        import numpy as np
+    def train(self, train_dataset):
+        # 提取训练数据
+        X = np.array([data[0] for data in train_dataset])
+        self.model.fit(X)
         
-        try:
-            # 提取特征
-            X = np.array([x[0] for x in testDataset])
-            self.logger.print(f"Test data shape: {X.shape}")
-            
-            # 返回预测概率
-            return self.model.predict_proba(X)
-            
-        except Exception as e:
-            self.logger.print(f"Error during EM testing: {str(e)}")
-            import traceback
-            self.logger.print(traceback.format_exc())
-            return None
-
+        # 可视化训练结果
+        self._visualize_results(X)
+        
+    def test(self, test_dataset):
+        X = np.array([data[0] for data in test_dataset])
+        return self.model.predict(X)
+    
+    def _visualize_results(self, X):
+        # 设置中文字体
+        plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
+        plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
+        
+        # 创建网格点
+        x_min, x_max = X[:, 0].min() - 1, X[:, 0].max() + 1
+        y_min, y_max = X[:, 1].min() - 1, X[:, 1].max() + 1
+        xx, yy = np.meshgrid(np.linspace(x_min, x_max, 100),
+                            np.linspace(y_min, y_max, 100))
+        
+        # 预测网格点的类别
+        Z = self.model.predict(np.c_[xx.ravel(), yy.ravel()])
+        Z = Z.reshape(xx.shape)
+        
+        # 绘制决策边界和数据点
+        plt.figure(figsize=(10, 8))
+        plt.contourf(xx, yy, Z, alpha=0.4)
+        scatter = plt.scatter(X[:, 0], X[:, 1], c=self.model.predict(X), alpha=0.8)
+        plt.colorbar(scatter, label='Cluster')
+        plt.title('EM Clustering Results')  # 使用英文避免字体问题
+        plt.xlabel('Feature 1')
+        plt.ylabel('Feature 2')
+        
+        # 将图像转换为numpy数组并显示
+        fig = plt.gcf()
+        fig.canvas.draw()
+        img = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
+        img = img.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        plt.close()
+        
+        self.logger.imshow(img)
 
 class LogisticRegressionModel:
     def __init__(self):
@@ -862,7 +831,7 @@ class HMMModel:
         初始化HMM模型
         
         Args:
-            n_states: 隐状态数量
+            n_states: 隐状数量
             n_observations: 观测状态数量
         """
         self.n_states = n_states
@@ -923,7 +892,7 @@ class HMMModel:
             # 提取观测序列
             observations = np.array([x[0] for x in trainDataset])
             
-            # 训练模型
+            # 训练型
             return self.train_internal(observations)
             
         except Exception as e:
@@ -963,7 +932,7 @@ class HMMModel:
             return final_log_likelihood  # 返回最终的似然值
             
         except Exception as e:
-            self.logger.print(f"训练迭代过程中出现错误: {str(e)}")
+            self.logger.print(f"��练迭代过程中出现错误: {str(e)}")
             import traceback
             self.logger.print(traceback.format_exc())
             return float('-inf')  # 出错时返回负无穷
@@ -1022,50 +991,53 @@ class HMMModel:
             
         return states
     
-    def visualize(self, save_path=None):
-        """可视化模型参数"""
+    def visualize(self, save_path=None, predictions=None):
+        """使用折线图可视化模型参数和预测结果"""
         # 设置中文字体
-        plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
-        plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
-    
+        plt.rcParams['font.sans-serif'] = ['SimHei']  
+        plt.rcParams['axes.unicode_minus'] = False  
+
         plt.switch_backend('Agg')
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 12))
-    
-        # 转移概率矩阵
-        sns.heatmap(self.A, annot=True, cmap='YlOrRd', ax=ax1)
-        ax1.set_title('Transition Matrix')  # 使用英文替代中文
-    
-        # 发射概率矩阵
-        sns.heatmap(self.B, annot=True, cmap='YlOrRd', ax=ax2)
-        ax2.set_title('Emission Matrix')  # 使用英文替代中文
-    
-        # 初始概率分布
-        ax3.bar(range(self.n_states), self.pi)
-        ax3.set_title('Initial State Distribution')  # 使用英文替代中文
-        ax3.set_xlabel('State')
-        ax3.set_ylabel('Probability')
-    
-        # 状态转移图
-        ax4.imshow(np.log(self.A), cmap='coolwarm')
-        ax4.set_title('Log Transition Probabilities')  # 使用英文替代中文
-    
-        plt.tight_layout()
-    
-        if save_path:
-           plt.savefig(save_path)
         
+        # 创建图表
+        fig, (ax1) = plt.subplots(1, 1, figsize=(12, 10))
+        
+        if predictions is not None:
+
+            # 状态分布统计 - 柱状图
+            unique_states, state_counts = np.unique(predictions, return_counts=True)
+            state_probs = state_counts / len(predictions)
+            
+            # 使用柱状图替代折线图
+            bars = ax1.bar(unique_states, state_probs, color=['lightcoral', 'lightgreen'])
+            ax1.set_title('State Distribution Statistics')
+            ax1.set_xlabel('State')
+            ax1.set_ylabel('Probability')
+            ax1.set_xticks(unique_states)
+            ax1.set_xticklabels([f'State {int(s)}' for s in unique_states])
+            ax1.grid(True, alpha=0.3)
+            
+            # 在柱子上添加具体数值
+            for bar in bars:
+                height = bar.get_height()
+                ax1.text(bar.get_x() + bar.get_width()/2., height,
+                        f'{height:.2%}',
+                        ha='center', va='bottom')
+
+        plt.tight_layout()
+
         # 转换为图像数组并显示
         buf = BytesIO()
         plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
         buf.seek(0)
-    
+
         img = Image.open(buf)
         img = img.convert('RGB')
         img_array = np.array(img)
-    
+
         plt.close()
         buf.close()
-    
+
         self.logger.imshow(img_array)
     
     def test(self, testDataset):
@@ -1077,10 +1049,14 @@ class HMMModel:
             # 使用维特比算法预测隐状态
             predicted_states = self.predict(observations)
             
-            # 可视化模型参数
-            self.visualize()
-            
-            return predicted_states
+            if predicted_states is not None:
+                # 可视化预测结果
+                self.visualize(predictions=predicted_states)
+                
+                return predicted_states
+            else:
+                self.logger.print("预测失败，返回None")
+                return None
             
         except Exception as e:
             self.logger.print(f"测试过程中出现错误: {str(e)}")
