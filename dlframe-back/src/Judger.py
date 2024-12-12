@@ -86,7 +86,7 @@ class F1ScoreJudger:
         
 class ClusteringJudger:
     def __init__(self):
-        self.logger = Logger.get_logger('EMJudger')
+        self.logger = Logger.get_logger('ClusteringJudger')
         
     def judge(self, predictions, test_dataset):
         X = np.array([data[0] for data in test_dataset])

@@ -23,7 +23,7 @@
               <div class="panel-header">
                 <span class="title">实验配置</span>
                 <el-tooltip content="配置实验参数" placement="top">
-                  <el-icon class="header-icon"><Setting /></el-icon>
+                  <el-icon class="header-icon" @click="showSettings = true"><Setting /></el-icon>
                 </el-tooltip>
               </div>
             </template>
@@ -106,6 +106,93 @@
       </el-row>
     </el-main>
   </el-container>
+
+  <!-- 添加设置对话框 -->
+  <el-dialog
+    v-model="showSettings"
+    :close-on-click-modal="false"
+    title="系统设置"
+    width="500px"
+  >
+    <el-tabs v-model="activeSettingTab">
+      <!-- 连接设置选项卡 -->
+      <el-tab-pane label="连接设置" name="connection">
+        <el-form :model="connectionForm" label-width="100px">
+          <el-form-item label="服务器地址">
+            <el-input v-model="connectionForm.url" placeholder="请输入服务器地址" />
+          </el-form-item>
+          <el-form-item label="端口">
+            <el-input v-model="connectionForm.port" placeholder="请输入端口号" />
+          </el-form-item>
+        </el-form>
+      </el-tab-pane>
+      
+      <!-- 按钮设置选项卡 -->
+      <el-tab-pane label="按钮设置" name="buttons">
+        <div class="button-settings">
+          <div v-for="(section, key) in configDict" :key="key" class="button-section">
+            <div class="section-header">
+              <h3>{{ key }}</h3>
+              <el-popover
+                v-if="deletedButtons[key]?.length"
+                :width="200"
+                placement="bottom"
+                trigger="click"
+              >
+                <template #reference>
+                  <el-button 
+                    size="small"
+                    type="success"
+                  >
+                    恢复按钮
+                  </el-button>
+                </template>
+                <div class="deleted-buttons-list">
+                  <div v-for="(btn, idx) in deletedButtons[key]" :key="idx" class="deleted-button-item">
+                    <span>{{ btn }}</span>
+                    <el-button 
+                      size="small"
+                      type="primary"
+                      @click="restoreButton(key, idx)"
+                    >
+                      恢复
+                    </el-button>
+                  </div>
+                </div>
+              </el-popover>
+            </div>
+            <el-table :data="section" style="width: 100%">
+              <el-table-column label="按钮名称" prop="name">
+                <template #default="{ row, $index }">
+                  <el-input v-model="section[$index]" placeholder="输入按钮名称" />
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="120">
+                <template #default="{ row, $index }">
+                  <el-button 
+                    size="small"
+                    type="danger"
+                    @click="removeButton(key, $index, row)"
+                  >
+                    删除
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+      </el-tab-pane>
+    </el-tabs>
+    
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="showSettings = false">取消</el-button>
+        <el-button type="primary" @click="handleSaveSettings">
+          保存设置
+        </el-button>
+      </span>
+    </template>
+  </el-dialog>
 </template>
 
 <style scoped>
@@ -242,6 +329,66 @@
     width: 100% !important;
     margin-bottom: 20px;
   }
+}
+
+.header-icon {
+  cursor: pointer;
+  font-size: 20px;
+  color: #409EFF;
+  transition: color 0.3s;
+}
+
+.header-icon:hover {
+  color: #66b1ff;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.button-settings {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.button-section {
+  margin-bottom: 20px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.section-header h3 {
+  margin: 0;
+  color: #606266;
+}
+
+.deleted-buttons-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.deleted-button-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #EBEEF5;
+}
+
+.deleted-button-item:last-child {
+  border-bottom: none;
+}
+
+.deleted-button-item span {
+  color: #606266;
+  margin-right: 10px;
 }
 </style>
 
@@ -389,6 +536,98 @@ const autoReconnect = () => {
     setTimeout(() => {
       connect()
     }, 5000)
+  }
+}
+
+// 添加新的响应式变量
+const showSettings = ref(false)
+const connectionForm = ref({
+  url: connectUrl.value,
+  port: connectPort.value
+})
+
+// 添加新的响应式变量
+const activeSettingTab = ref('connection')
+
+// 添加按钮管理方法
+const addButton = (section: string) => {
+  if (Array.isArray(configDict.value[section])) {
+    configDict.value[section].push('')
+  }
+}
+
+// 添加已删除按钮存储
+interface DeletedButtonsInterface {
+  [key: string]: string[];
+}
+
+const deletedButtons = ref<DeletedButtonsInterface>({})
+
+// 修改删除按钮的方法
+const removeButton = (section: string, index: number, value: string) => {
+  if (Array.isArray(configDict.value[section])) {
+    // 保存删除的按钮
+    if (!deletedButtons.value[section]) {
+      deletedButtons.value[section] = []
+    }
+    deletedButtons.value[section].push(configDict.value[section][index])
+    
+    // 从当前列表中删除
+    configDict.value[section].splice(index, 1)
+  }
+}
+
+// 添加恢复按钮的方法
+const restoreButton = (section: string, deletedIndex: number) => {
+  if (deletedButtons.value[section] && deletedButtons.value[section][deletedIndex]) {
+    // 恢复按钮到原列表
+    configDict.value[section].push(deletedButtons.value[section][deletedIndex])
+    
+    // 从已删除列表中移除
+    deletedButtons.value[section].splice(deletedIndex, 1)
+    
+    // 如果该分类下没有已删除按钮了，删除该分类
+    if (deletedButtons.value[section].length === 0) {
+      delete deletedButtons.value[section]
+    }
+    
+    ElMessage.success('按钮已恢复')
+  }
+}
+
+// 修改保存设置的方法
+const handleSaveSettings = () => {
+  // 保存连接设置
+  connectUrl.value = connectionForm.value.url
+  connectPort.value = connectionForm.value.port
+  
+  // 保存按钮设置到服务器
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      'type': 'update_config',
+      'params': configDict.value
+    }))
+  }
+  
+  showSettings.value = false
+  
+  // 如果连接设置发生改变，重新连接
+  if (connectUrl.value !== connectionForm.value.url || 
+      connectPort.value !== connectionForm.value.port) {
+    if (ws) {
+      ws.close()
+    }
+    connect()
+  }
+}
+
+// 添加 WebSocket 消息处理
+const handleWebSocketMessage = (received_msg: any) => {
+  if (received_msg.status === 200) {
+    if (received_msg.type === 'update_config') {
+      ElMessage.success('配置更新成功')
+    }
+    // ... 其他现有的消息处理 ...
   }
 }
 </script>

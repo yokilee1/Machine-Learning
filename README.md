@@ -263,15 +263,7 @@ def visualize(self , testDataset)
 
 ### 5.2 功能模块
 
-1. 配置管理
-
-```js
-interface DlFrameConfigInterface {
-  [key: string]: string;
-}
-```
-
-WebSocket通信
+**1.WebSocket通信**
 
 ```is
 const ws = new WebSocket(`ws://${connectUrl}:${connectPort}`)
@@ -282,6 +274,46 @@ const ws = new WebSocket(`ws://${connectUrl}:${connectPort}`)
 文本输出
 
 图像显示
+
+
+
+**2.配置实验参数功能**
+
+```
+interface DeletedButtonsInterface {
+  [key: string]: string[];
+}
+```
+
+**连接设置功能**
+
+增加了连接设置功能
+
+可自行选择主机号和监听窗口进行前后端互联，实现虚拟机远程连接
+
+**删除功能**
+
+增加了删除按钮功能
+
+删除的按钮不会被直接销毁，而是保存在 deletedButtons 中
+
+为每个配置分类单独维护已删除按钮列表
+
+恢复功能
+
+添加了"恢复按钮"功能，可以找回之前删除的按钮
+
+通过弹出框形式展示可恢复的按钮列表
+
+支持选择性恢复单个按钮
+
+**界面优化**
+
+只有当存在已删除按钮时才显示"恢复按钮"选项
+
+使用 el-popover 组件展示已删除按钮列表
+
+优化了按钮的展示样式和交互效果
 
 
 
@@ -319,7 +351,7 @@ imshow: 图像显示
 
 ### 7.1 HMM隐马尔可夫模型训练
 
-hmm模型构建初期，存在预测准确率过低的问题，通过修改及调试矩阵参数，将准确率提升至80%+。
+hmm模型构建初期，存在预测准确率过低的问题，通过修改及调试矩阵参数，更换数据集，优化数据预处理等多种尝试，最终将准确率提升至80%+。
 
 ```python
 class HMMModel:
@@ -539,6 +571,50 @@ class WebManager(CalculationNodeManager):
 - 使用了带有插槽的 `<template #header>` 定义了卡片的头部内容。包含了一些有关实验配置的标题和工具提示。
 - `<el-tooltip>`：为设置图标提供了一个工具提示，描述了图标的功能（配置实验参数）。
 
+### 7.5 解决异步循环出错
+
+```
+runtimeerror: task <task pending name='task-9' coro=<sendsocket.sendworker() running at c:\programdata\anaconda3\lib\site-packages\dlframe\webmanager.py:26> cb=[_run_until_complete_cb() at c:\programdata\anaconda3\lib\asyncio\base_events.py:182]> got future <future pending> attached to a different loop
+```
+
+**1. 线程分离**
+
+新增了 run_in_new_thread 函数，将所有模型训练和评估的代码独立出来
+
+使用 threading.Thread 在单独的线程中运行计算密集型任务
+
+主线程保留用于处理 WebManager 的异步操作
+
+**2. 错误处理优化**
+
+在 run_in_new_thread 函数中添加了异常捕获
+
+提供更清晰的错误信息输出
+
+**3. 线程同步**
+
+使用 training_thread.join() 确保训练线程完成后再关闭事件循环
+
+保证了资源的正确释放
+
+```python
+if __name__ == '__main__':
+    # 创建新的事件循环
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    try:
+        with WebManager(host='0.0.0.0', port=8765) as manager:
+            # 在新线程中运行模型训练和评估
+            training_thread = threading.Thread(target=run_in_new_thread, args=(manager,))
+            training_thread.start()
+            
+            # 等待训练线程完成
+            training_thread.join()
+    finally:
+        loop.close()
+```
+
 
 
 ## 8. 特色功能
@@ -559,17 +635,23 @@ class WebManager(CalculationNodeManager):
 
 标准机器学习数据集
 
+### 8.4 前端界面的个性化操作
+
+自由选择删除无关参数
+
+自由配置连接端口
+
 
 
 ## 9. 项目优势
 
-**架构设计**
+### 9.1 架构设计
 
 - 清晰的模块划分
 - 良好的扩展性
 - 松耦合的组件设计
 
-**用户体验**
+### 9.2 用户体验
 
 - 直观的界面设计
 
@@ -585,6 +667,13 @@ class WebManager(CalculationNodeManager):
 
 - 数据可视化的展现
 
+### 9.3 线程分离
+
+- 解决了事件循环冲突问题
+- 提高了代码的可维护性
+- 保证了 WebManager 的正常运行
+- 避免了模型训练阻塞 WebSocket 通信
+
 
 
 ## 10. 改进要求
@@ -595,10 +684,12 @@ class WebManager(CalculationNodeManager):
 - 实现可视化展示与否选择
 - 增加并发处理能力
 - 完善错误处理机制
+- 隐马尔可夫试验进一步优化
 
 ### 10.2 前端改进
 
 - 优化数据展示
+- 实现自定义数据集上传
 - 实现数据分割系数自定义
 - 增强响应式设计
 - 实现数据导出
@@ -611,5 +702,16 @@ class WebManager(CalculationNodeManager):
 - 优化通信协议
 - 优化异步运行
 
+## 附录
 
+### 工程实现时间线
+
+| 时间          | 完成工作                                                     |
+| ------------- | ------------------------------------------------------------ |
+| 11周（11.14） | 实现基本机器学习模型的训练测试功能                           |
+| 12周（11.21） | 完善HMM和EM、K-means模型；添加评价指标；数据可视化功能实现   |
+| 13周（11.28） | 继续优化HMM模型，提高准确度；前端界面的优化；前后端互联功能实现 |
+| 14周（12.05） | 数据可视化功能优化；尝试将可视化功能独立成单独模块（未实现）；继续优化前端界面，添加动画效果 |
+| 15周（12.12） | 解决异步循环导致软件运行出错；添加前端实验配置功能           |
+| 16周（12.19） | 撰写工程报告；完善项目细节                                   |
 
