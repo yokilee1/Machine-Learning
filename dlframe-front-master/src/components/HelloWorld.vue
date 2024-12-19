@@ -7,10 +7,22 @@
           <img alt="Logo" class="logo" src="/logo.ico">
           <h1>机器学习实践平台</h1>
         </div>
-        <el-tag class="connection-status" effect="dark" type="success">
-          <el-icon><Connection /></el-icon>
-          已连接: {{connectUrl}}:{{connectPort}}
-        </el-tag>
+        <div class="header-right">
+          <el-tooltip content="开发者信息" placement="bottom">
+            <el-button
+              class="developer-btn"
+              link
+              type="info"
+              @click="showDeveloperInfo = true"
+            >
+              <el-icon><User /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <el-tag class="connection-status" effect="dark" type="success">
+            <el-icon><Connection /></el-icon>
+            已连接: {{connectUrl}}:{{connectPort}}
+          </el-tag>
+        </div>
       </div>
     </el-header>
     
@@ -67,6 +79,19 @@
                   <span class="title">实验结果</span>
                 </div>
                 <div class="controls">
+                  <el-dropdown style="margin-right: 10px" @command="handleExport">
+                    <el-button size="small" type="primary">
+                      导出结果
+                      <el-icon class="el-icon--right"><Download /></el-icon>
+                    </el-button>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item command="text">导出为文本</el-dropdown-item>
+                        <el-dropdown-item command="image">导出图片</el-dropdown-item>
+                        <el-dropdown-item command="all">导出全部</el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
                   <el-button 
                     :icon="Delete"
                     size="small"
@@ -110,9 +135,9 @@
   <!-- 添加设置对话框 -->
   <el-dialog
     v-model="showSettings"
-    :close-on-click-modal="false"
     title="系统设置"
     width="500px"
+    :close-on-click-modal="false"
   >
     <el-tabs v-model="activeSettingTab">
       <!-- 连接设置选项卡 -->
@@ -135,8 +160,8 @@
               <h3>{{ key }}</h3>
               <el-popover
                 v-if="deletedButtons[key]?.length"
-                :width="200"
                 placement="bottom"
+                :width="200"
                 trigger="click"
               >
                 <template #reference>
@@ -193,6 +218,20 @@
       </span>
     </template>
   </el-dialog>
+
+  <!-- 添加开发者信息对话框 -->
+  <el-dialog
+    v-model="showDeveloperInfo"
+    title="开发者信息"
+    width="400px"
+  >
+    <div class="developer-info">
+      <h3>YOKI LEE</h3>
+      <p>CUC - 202212033024</p>
+      <p>邮箱：642814925@qq.com</p>
+      <p>Gitee:https://gitee.com/yokilee</p>
+    </div>
+  </el-dialog>
 </template>
 
 <style scoped>
@@ -223,6 +262,10 @@
 .logo {
   height: 40px;
   width: 40px;
+}
+
+.logo-title h1 {
+  margin: 0;
 }
 
 .connection-status {
@@ -390,6 +433,41 @@
   color: #606266;
   margin-right: 10px;
 }
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.developer-btn {
+  font-size: 18px;
+  color: #909399;
+}
+
+.developer-btn:hover {
+  color: #409EFF;
+}
+
+.developer-info {
+  padding: 10px;
+}
+
+.developer-info h3 {
+  color: #303133;
+  margin: 10px 0;
+  font-size: 16px;
+}
+
+.developer-info p {
+  color: #606266;
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+.el-divider {
+  margin: 15px 0;
+}
 </style>
 
 <script lang="ts" setup>
@@ -400,7 +478,9 @@ import {
   Setting, 
   Menu, 
   Connection,
-  DataAnalysis 
+  DataAnalysis,
+  User,
+  Download
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
@@ -629,5 +709,70 @@ const handleWebSocketMessage = (received_msg: any) => {
     }
     // ... 其他现有的消息处理 ...
   }
+}
+
+// 添加开发者信息控制变量
+const showDeveloperInfo = ref(false)
+
+// 添加导出功能
+const handleExport = (type: string) => {
+  if (runningOutput.value.length === 0) {
+    ElMessage.warning('没有可导出的结果')
+    return
+  }
+
+  switch (type) {
+    case 'text':
+      exportText()
+      break
+    case 'image':
+      exportImages()
+      break
+    case 'all':
+      exportAll()
+      break
+  }
+}
+
+// 导出文本结果
+const exportText = () => {
+  const textContent = runningOutput.value
+    .filter(item => item.type === 'string')
+    .map(item => item.content)
+    .join('\n')
+
+  const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `实验结果_${new Date().toLocaleString()}.txt`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+// 导出图片结果
+const exportImages = () => {
+  const images = runningOutput.value.filter(item => item.type === 'image')
+  if (images.length === 0) {
+    ElMessage.warning('没有可导出的图片')
+    return
+  }
+
+  images.forEach((item, index) => {
+    const link = document.createElement('a')
+    link.href = `data:image/jpeg;base64,${item.content}`
+    link.download = `实验图片_${index + 1}.jpg`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  })
+}
+
+// 导出所有结果
+const exportAll = () => {
+  exportText()
+  exportImages()
 }
 </script>

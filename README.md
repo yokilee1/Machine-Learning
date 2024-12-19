@@ -19,6 +19,7 @@
 
 - Cursor
 - Visual Studio Code
+- PyCharm 2024.1.7
 - WebStorm 2024.1.7
 
 ### 2.3 前端启动
@@ -299,7 +300,7 @@ interface DeletedButtonsInterface {
 
 为每个配置分类单独维护已删除按钮列表
 
-恢复功能
+**恢复功能**
 
 添加了"恢复按钮"功能，可以找回之前删除的按钮
 
@@ -314,6 +315,77 @@ interface DeletedButtonsInterface {
 使用 el-popover 组件展示已删除按钮列表
 
 优化了按钮的展示样式和交互效果
+
+3.**数据导出功能**
+
+新增了实验结果导出功能，支持将实验过程中产生的文本和图片结果导出到本地文件。用户可以选择导出文本、图片或全部内容。
+
+```vue
+// 在 script 部分添加导出相关方法
+import { Download } from '@element-plus/icons-vue'
+
+// 添加导出处理方法
+const handleExport = (type: string) => {
+  if (runningOutput.value.length === 0) {
+    ElMessage.warning('没有可导出的结果')
+    return
+  }
+
+  switch (type) {
+    case 'text':
+      exportText()
+      break
+    case 'image':
+      exportImages()
+      break
+    case 'all':
+      exportAll()
+      break
+  }
+}
+
+// 导出文本结果
+const exportText = () => {
+  const textContent = runningOutput.value
+    .filter(item => item.type === 'string')
+    .map(item => item.content)
+    .join('\n')
+
+  const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `实验结果_${new Date().toLocaleString()}.txt`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+// 导出图片结果
+const exportImages = () => {
+  const images = runningOutput.value.filter(item => item.type === 'image')
+  if (images.length === 0) {
+    ElMessage.warning('没有可导出的图片')
+    return
+  }
+
+  images.forEach((item, index) => {
+    const link = document.createElement('a')
+    link.href = `data:image/jpeg;base64,${item.content}`
+    link.download = `实验图片_${index + 1}.jpg`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  })
+}
+
+// 导出所有结果
+const exportAll = () => {
+  exportText()
+  exportImages()
+}
+```
 
 
 
@@ -692,12 +764,10 @@ if __name__ == '__main__':
 - 实现自定义数据集上传
 - 实现数据分割系数自定义
 - 增强响应式设计
-- 实现数据导出
 
 ### 10.3 整体改进
 
 - 添加用户认证系统
-- 实现实验结果保存功能
 - 支持更多数据格式
 - 优化通信协议
 - 优化异步运行
@@ -712,6 +782,6 @@ if __name__ == '__main__':
 | 12周（11.21） | 完善HMM和EM、K-means模型；添加评价指标；数据可视化功能实现   |
 | 13周（11.28） | 继续优化HMM模型，提高准确度；前端界面的优化；前后端互联功能实现 |
 | 14周（12.05） | 数据可视化功能优化；尝试将可视化功能独立成单独模块（未实现）；继续优化前端界面，添加动画效果 |
-| 15周（12.12） | 解决异步循环导致软件运行出错；添加前端实验配置功能           |
+| 15周（12.12） | 解决异步循环导致软件运行出错；添加前端实验配置功能；添加前端数据导出功能 |
 | 16周（12.19） | 撰写工程报告；完善项目细节                                   |
 
