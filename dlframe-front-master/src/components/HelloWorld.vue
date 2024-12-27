@@ -71,62 +71,99 @@
 
         <!-- 右侧结果展示 -->
         <el-col :span="16">
-          <el-card class="result-panel" shadow="hover">
-            <template #header>
-              <div class="panel-header">
-                <div class="title-section">
-                  <el-icon><DataAnalysis /></el-icon>
-                  <span class="title">实验结果</span>
-                </div>
-                <div class="controls">
-                  <el-dropdown style="margin-right: 10px" @command="handleExport">
-                    <el-button size="small" type="primary">
-                      导出结果
-                      <el-icon class="el-icon--right"><Download /></el-icon>
-                    </el-button>
-                    <template #dropdown>
-                      <el-dropdown-menu>
-                        <el-dropdown-item command="text">导出为文本</el-dropdown-item>
-                        <el-dropdown-item command="image">导出图片</el-dropdown-item>
-                        <el-dropdown-item command="all">导出全部</el-dropdown-item>
-                      </el-dropdown-menu>
-                    </template>
-                  </el-dropdown>
-                  <el-button 
-                    :icon="Delete"
-                    size="small"
-                    type="danger"
-                    @click="clearOutput">
-                    清空结果
-                  </el-button>
-                </div>
-              </div>
-            </template>
-            
-            <div class="result-content">
-              <el-scrollbar height="600px">
-                <transition-group name="fade">
-                  <div v-for="(content, idx) in runningOutput" 
-                       :key="idx" 
-                       class="result-item">
-                    <el-alert
-                      v-if="content.type === 'string'"
-                      :closable="false"
-                      :title="content.content"
-                      class="text-output"
-                    />
-                    <el-image
-                      v-if="content.type === 'image'"
-                      :preview-src-list="['data:image/jpeg;base64,'+content.content]"
-                      :src="'data:image/jpeg;base64,'+content.content"
-                      class="image-output"
-                      fit="contain"
-                    />
+          <el-row :gutter="20">
+            <!-- 文本输出面板 -->
+            <el-col :span="14">
+              <el-card class="result-panel" shadow="hover">
+                <template #header>
+                  <div class="panel-header">
+                    <div class="title-section">
+                      <el-icon><Document /></el-icon>
+                      <span class="title">评价结果</span>
+                    </div>
+                    <div class="controls">
+                      <el-dropdown style="margin-right: 10px" @command="handleExport">
+                        <el-button size="small" type="primary">
+                          导出结果
+                          <el-icon class="el-icon--right"><Download /></el-icon>
+                        </el-button>
+                        <template #dropdown>
+                          <el-dropdown-menu>
+                            <el-dropdown-item command="text">导出文本</el-dropdown-item>
+                            <el-dropdown-item command="image">导出图片</el-dropdown-item>
+                            <el-dropdown-item command="all">导出全部</el-dropdown-item>
+                          </el-dropdown-menu>
+                        </template>
+                      </el-dropdown>
+                      <el-button 
+                        :icon="Delete"
+                        size="small"
+                        type="danger"
+                        @click="clearTextOutput">
+                        清空文本
+                      </el-button>
+                    </div>
                   </div>
-                </transition-group>
-              </el-scrollbar>
-            </div>
-          </el-card>
+                </template>
+                
+                <div class="result-content">
+                  <el-scrollbar height="600px">
+                    <transition-group name="fade">
+                      <div v-for="(content, idx) in textOutput" 
+                           :key="idx" 
+                           class="result-item">
+                        <el-alert
+                          :closable="false"
+                          :title="content"
+                          class="text-output"
+                        />
+                      </div>
+                    </transition-group>
+                  </el-scrollbar>
+                </div>
+              </el-card>
+            </el-col>
+
+            <!-- 图片输出面板 -->
+            <el-col :span="10">
+              <el-card class="result-panel" shadow="hover">
+                <template #header>
+                  <div class="panel-header">
+                    <div class="title-section">
+                      <el-icon><Picture /></el-icon>
+                      <span class="title">可视化输出</span>
+                    </div>
+                    <div class="controls">
+                      <el-button 
+                        :icon="Delete"
+                        size="small"
+                        type="danger"
+                        @click="clearImageOutput">
+                        清空图片
+                      </el-button>
+                    </div>
+                  </div>
+                </template>
+                
+                <div class="result-content">
+                  <el-scrollbar height="600px">
+                    <transition-group name="fade">
+                      <div v-for="(content, idx) in imageOutput" 
+                           :key="idx" 
+                           class="result-item">
+                        <el-image
+                          :preview-src-list="['data:image/jpeg;base64,'+content]"
+                          :src="'data:image/jpeg;base64,'+content"
+                          class="image-output"
+                          fit="contain"
+                        />
+                      </div>
+                    </transition-group>
+                  </el-scrollbar>
+                </div>
+              </el-card>
+            </el-col>
+          </el-row>
         </el-col>
       </el-row>
     </el-main>
@@ -140,6 +177,29 @@
     :close-on-click-modal="false"
   >
     <el-tabs v-model="activeSettingTab">
+      <!-- 显示设置选项卡 -->
+      <el-tab-pane label="显示设置" name="display">
+        <el-form label-width="120px">
+          <el-form-item label="图像输出">
+            <el-switch
+              v-model="displaySettings.showImages"
+              active-text="启用"
+              inactive-text="禁用"
+            />
+          </el-form-item>
+          <el-form-item label="图像大小限制">
+            <el-input-number 
+              v-model="displaySettings.maxImageHeight" 
+              :disabled="!displaySettings.showImages"
+              :max="800"
+              :min="200"
+              :step="50"
+            />
+            <span class="unit-text">px</span>
+          </el-form-item>
+        </el-form>
+      </el-tab-pane>
+      
       <!-- 连接设置选项卡 -->
       <el-tab-pane label="连接设置" name="connection">
         <el-form :model="connectionForm" label-width="100px">
@@ -468,6 +528,61 @@
 .el-divider {
   margin: 15px 0;
 }
+
+.result-panel {
+  margin-bottom: 20px;
+}
+
+.image-output {
+  width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+  margin: 10px 0;
+  cursor: pointer;
+}
+
+.text-output {
+  margin: 10px 0;
+}
+
+.result-panel {
+  height: calc(100vh - 140px);
+  overflow: hidden;
+}
+
+.result-content {
+  height: calc(100% - 60px);
+  padding: 10px;
+}
+
+.el-scrollbar {
+  height: 100% !important;
+}
+
+/* 添加图片预览相关样式 */
+:deep(.el-image-viewer__wrapper) {
+  z-index: 2100;
+}
+
+:deep(.el-image-viewer__img) {
+  max-width: 90%;
+  max-height: 90%;
+}
+
+.unit-text {
+  margin-left: 10px;
+  color: #909399;
+}
+
+/* 修改图片输出样式，使用动态高度 */
+.image-output {
+  width: 100%;
+  max-height: v-bind('displaySettings.showImages ? displaySettings.maxImageHeight + "px" : "0px"');
+  object-fit: contain;
+  margin: v-bind('displaySettings.showImages ? "10px 0" : "0"');
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
 </style>
 
 <script lang="ts" setup>
@@ -480,7 +595,9 @@ import {
   Connection,
   DataAnalysis,
   User,
-  Download
+  Download,
+  Document,
+  Picture
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
@@ -512,12 +629,10 @@ const connect = () => {
   }
   ws.onmessage = (evt) => {
     var received_msg = JSON.parse(evt.data);
-    // console.log(received_msg);
     
     if (received_msg.status === 200) {
       const received_msg_data = received_msg.data
       if (received_msg.type === 'overview') {
-        // console.log(received_msg.data)
         configDict.value = received_msg.data
         
         const tmpDict: DlFrameConfigInterface = {}
@@ -525,21 +640,16 @@ const connect = () => {
           tmpDict[i] = ''
         }
         configValue.value = tmpDict
-        runningOutput.value = []
+        textOutput.value = []
+        imageOutput.value = []
       }
-
       else if (received_msg.type === 'print') {
-        runningOutput.value.push({
-          'type': 'string', 
-          'content': received_msg_data.content
-        })
+        textOutput.value.push(received_msg_data.content)
       }
-
       else if (received_msg.type === 'imshow') {
-        runningOutput.value.push({
-          'type': 'image', 
-          'content': received_msg_data.content
-        })
+        if (displaySettings.value.showImages) {
+          imageOutput.value.push(received_msg_data.content)
+        }
       }
     } else {
       console.error(received_msg.data);
@@ -590,7 +700,10 @@ const clickButton = async () => {
         return
       }
     }
-    runningOutput.value = []
+    // 清空之前的输出
+    textOutput.value = []
+    imageOutput.value = []
+    
     ws?.send(JSON.stringify({
       'type': 'run', 
       'params': configValue.value
@@ -598,15 +711,6 @@ const clickButton = async () => {
   } finally {
     isRunning.value = false
   }
-}
-
-interface RunningOutputInterface {
-  [key: string]: string;
-}
-const runningOutput = ref<Array<RunningOutputInterface>>([])
-
-const clearOutput = () => {
-  runningOutput.value = []
 }
 
 const isRunning = ref(false)
@@ -691,6 +795,11 @@ const handleSaveSettings = () => {
   
   showSettings.value = false
   
+  // 如果禁用图像输出，清空现有图像
+  if (!displaySettings.value.showImages) {
+    imageOutput.value = []
+  }
+  
   // 如果连接设置发生改变，重新连接
   if (connectUrl.value !== connectionForm.value.url || 
       connectPort.value !== connectionForm.value.port) {
@@ -716,19 +825,26 @@ const showDeveloperInfo = ref(false)
 
 // 添加导出功能
 const handleExport = (type: string) => {
-  if (runningOutput.value.length === 0) {
-    ElMessage.warning('没有可导出的结果')
-    return
-  }
-
   switch (type) {
     case 'text':
+      if (textOutput.value.length === 0) {
+        ElMessage.warning('没有可导出的文本')
+        return
+      }
       exportText()
       break
     case 'image':
+      if (imageOutput.value.length === 0) {
+        ElMessage.warning('没有可导出的图片')
+        return
+      }
       exportImages()
       break
     case 'all':
+      if (textOutput.value.length === 0 && imageOutput.value.length === 0) {
+        ElMessage.warning('没有可导出的内容')
+        return
+      }
       exportAll()
       break
   }
@@ -736,11 +852,12 @@ const handleExport = (type: string) => {
 
 // 导出文本结果
 const exportText = () => {
-  const textContent = runningOutput.value
-    .filter(item => item.type === 'string')
-    .map(item => item.content)
-    .join('\n')
+  if (textOutput.value.length === 0) {
+    ElMessage.warning('没有可导出的文本')
+    return
+  }
 
+  const textContent = textOutput.value.join('\n')
   const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -754,15 +871,14 @@ const exportText = () => {
 
 // 导出图片结果
 const exportImages = () => {
-  const images = runningOutput.value.filter(item => item.type === 'image')
-  if (images.length === 0) {
+  if (imageOutput.value.length === 0) {
     ElMessage.warning('没有可导出的图片')
     return
   }
 
-  images.forEach((item, index) => {
+  imageOutput.value.forEach((content, index) => {
     const link = document.createElement('a')
-    link.href = `data:image/jpeg;base64,${item.content}`
+    link.href = `data:image/jpeg;base64,${content}`
     link.download = `实验图片_${index + 1}.jpg`
     document.body.appendChild(link)
     link.click()
@@ -775,4 +891,23 @@ const exportAll = () => {
   exportText()
   exportImages()
 }
+
+// 分离文本和图片输出
+const textOutput = ref<string[]>([])
+const imageOutput = ref<string[]>([])
+
+// 分别清空文本和图片输出
+const clearTextOutput = () => {
+  textOutput.value = []
+}
+
+const clearImageOutput = () => {
+  imageOutput.value = []
+}
+
+// 添加显示设置
+const displaySettings = ref({
+  showImages: true,
+  maxImageHeight: 400
+})
 </script>

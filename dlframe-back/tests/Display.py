@@ -66,6 +66,8 @@ def run_in_new_thread(manager):
 
         # 执行完整的训练和测试流程
         judger.judge(y_hat, test_data)  # 评估结果
+        
+
     except Exception as e:
         print(f"运行时错误: {e}")
 

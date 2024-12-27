@@ -14,6 +14,7 @@ class SendSocket:
         self.socket = socket
         self.sendThread = threading.Thread(target=self.threadWorker, daemon=True)
         self.sendThread.start()
+        self._write_fut = None
 
     def threadWorker(self):
         event_loop = asyncio.new_event_loop()
@@ -22,8 +23,15 @@ class SendSocket:
 
     async def sendWorker(self):
         while True:
-            content = self.sendBuffer.get()
-            await self.socket.send(content)
+            try:
+                content = self.sendBuffer.get()
+                if self._write_fut is not None:
+                    await self._write_fut
+                self._write_fut = asyncio.create_task(self.socket.send(content))
+                await self._write_fut
+            except Exception as e:
+                print(f"发送错误: {e}")
+                continue
 
     def send(self, content: str):
         self.sendBuffer.put(content)
@@ -137,3 +145,27 @@ class WebManager(CalculationNodeManager):
 
         event_loop.run_until_complete(websockets.serve(onRecv, host, port))
         event_loop.run_forever()
+
+    async def handle_message(self, socket, message, sendSocket):
+        try:
+            message = json.loads(message)
+            # 处理消息...
+        except Exception as e:
+            error_msg = {
+                'status': 500,
+                'type': 'error',
+                'data': {
+                    'content': str(e)
+                }
+            }
+            await socket.send(json.dumps(error_msg))
+            
+    async def onRecv(self, socket, path):
+        try:
+            sendSocket = SendSocket(socket)
+            async for message in socket:
+                await self.handle_message(socket, message, sendSocket)
+        except websockets.exceptions.ConnectionClosed:
+            print("连接已关闭")
+        except Exception as e:
+            print(f"发生错误: {e}")

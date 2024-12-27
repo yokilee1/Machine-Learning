@@ -241,7 +241,7 @@ def visualize(self , testDataset)
 
 ## 5. 前端架构 (dlframe-front-master)
 
-![1](D:\project\machine-learning\img\1.png)
+![1](img\3.png)
 
 ### 5.1 核心组件
 
@@ -286,11 +286,13 @@ interface DeletedButtonsInterface {
 }
 ```
 
-**连接设置功能**
+**连接图片展示功能**
 
-增加了连接设置功能
+提供图像输出的开关控制
 
-可自行选择主机号和监听窗口进行前后端互联，实现虚拟机远程连接
+允许自定义图像显示的最大高度（200px-800px）
+
+当图像输出被禁用时，高度设置也会被禁用
 
 **删除功能**
 
@@ -612,9 +614,9 @@ class WebManager(CalculationNodeManager):
 
 ### 7.4 前端界面优化
 
-| 原前端界面     | 优化后前端界面 |
-| -------------- | -------------- |
-| ![](img\2.png) | ![](img\1.png) |
+| 原前端界面     | 优化后前端界面 | 二次优化前端界面 |
+| -------------- | -------------- | ---------------- |
+| ![](img\2.png) | ![](img\1.png) | ![](img\3.png)   |
 
 **组件结构**：
 
@@ -648,6 +650,8 @@ class WebManager(CalculationNodeManager):
 ```
 runtimeerror: task <task pending name='task-9' coro=<sendsocket.sendworker() running at c:\programdata\anaconda3\lib\site-packages\dlframe\webmanager.py:26> cb=[_run_until_complete_cb() at c:\programdata\anaconda3\lib\asyncio\base_events.py:182]> got future <future pending> attached to a different loop
 ```
+
+当我们使用异步编程时，每个asyncio任务都会绑定到一个事件循环（Event Loop），始终在相同的事件循环上运行。当一个Future对象（例如一个awaitable函数）在一个事件循环上创建，然后在另一个事件循环上被执行时，就会出现异常 “got Future attached to a different loop”。
 
 **1. 线程分离**
 
@@ -711,7 +715,7 @@ if __name__ == '__main__':
 
 自由选择删除无关参数
 
-自由配置连接端口
+自由配置可视化
 
 
 
